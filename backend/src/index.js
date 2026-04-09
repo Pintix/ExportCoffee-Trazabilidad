@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const lotesRoutes = require('./routes/lotes');
+const caficultoresRoutes = require('./routes/caficultores');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -13,6 +14,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/lotes', lotesRoutes);
+app.use('/api/caficultores', caficultoresRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

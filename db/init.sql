@@ -31,11 +31,4 @@ CREATE TABLE IF NOT EXISTS procesos (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Datos de prueba iniciales
-INSERT INTO caficultores (nombre, finca, region) VALUES 
-('Juan Pérez', 'Finca La Esperanza', 'Tarrazú'),
-('María Rodríguez', 'Finca El Mirador', 'Chirripó');
-
-INSERT INTO lotes (caficultor_id, variedad, altura, peso_inicial) VALUES 
-(1, 'Caturra', 1850, 150.50),
-(2, 'Geisha', 1950, 80.00);
+-- No hay datos iniciales seleccionados
