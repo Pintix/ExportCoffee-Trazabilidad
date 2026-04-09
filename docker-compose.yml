@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: exportcoffee_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: exportcoffee
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-net
+
+  api:
+    build: ./backend
+    container_name: exportcoffee_api
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=exportcoffee
+      - DB_HOST=db
+      - DB_PORT=5432
+    depends_on:
+      - db
+    networks:
+      - backend-net
+
+  web:
+    build: ./frontend
+    container_name: exportcoffee_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:4000
+    depends_on:
+      - api
+    networks:
+      - frontend-net
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge
+  frontend-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
