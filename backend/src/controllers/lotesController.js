@@ -3,7 +3,8 @@ const db = require('../db');
 const getLotes = async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT l.*, c.nombre as caficultor_nombre, c.finca 
+      SELECT l.*, c.nombre as caficultor_nombre, c.finca,
+      (SELECT COUNT(*) FROM procesos p WHERE p.lote_id = l.id) as procesos_count
       FROM lotes l 
       JOIN caficultores c ON l.caficultor_id = c.id
       ORDER BY l.created_at DESC
