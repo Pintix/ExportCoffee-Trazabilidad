@@ -46,6 +46,23 @@ services:
       - frontend-net
       - backend-net
 
+  pb:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: exportcoffee_pb
+    restart: always
+    command: 
+      - serve
+      - --http=0.0.0.0:8080
+      - --dir=/pb_data
+      - --publicDir=/pb_public
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./pb_data:/pb_data
+    networks:
+      - backend-net
+      - frontend-net
+
 networks:
   backend-net:
     driver: bridge

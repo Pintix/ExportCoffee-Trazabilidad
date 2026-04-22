@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { Coffee, Clipboard, Droplets, Thermometer, QrCode, RefreshCw, Calendar, Users, MapPin, Layers, X, Download, Camera, Brain, CheckCircle, AlertTriangle } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as tf from '@tensorflow/tfjs';
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://localhost:8090');
 
 export default function Home() {
   const [tab, setTab] = useState('register');
@@ -21,26 +24,26 @@ export default function Home() {
 
   // Estados del formulario de Lotes
   const [formData, setFormData] = useState({
-    variedad: 'Caturra',
-    peso_inicial: '',
+    caficultor: '',
+    variedad: 'Arábica - Caturra',
     altura: '',
-    caficultor_id: ''
+    peso_inicial: '',
+    fecha_cosecha: new Date().toISOString().split('T')[0]
   });
 
-  // Estado del formulario de Productores
   const [provData, setProvData] = useState({
     nombre: '',
     finca: '',
     region: ''
   });
-  
+
   // Estado del formulario de Procesos
   const [processData, setProcessData] = useState({
-    lote_id: '',
+    lote: '',
     tipo: 'fermentacion',
     sub_tipo: 'Lavado',
-    temperatura_promedio: '',
-    humedad_promedio: '',
+    temperatura: '',
+    humedad: '',
     notas: ''
   });
 
@@ -48,53 +51,52 @@ export default function Home() {
   const fetchLotes = async () => {
     setLoadingList(true);
     try {
-      const response = await fetch('http://localhost:4000/api/lotes');
-      if (response.ok) {
-        const data = await response.json();
-        setLotes(data);
+      const records = await pb.collection('lotes').getFullList({
+        sort: '-created',
+        expand: 'caficultor',
+      });
+      
+      const formattedLotes = records.map((record, index) => ({
+        numero: records.length - index,
+        id: record.id,
+        caficultor_id: record.caficultor,
+        caficultor_nombre: record.expand?.caficultor?.nombre || 'Desconocido',
+        finca: record.expand?.caficultor?.finca || 'N/A',
+        variedad: record.variedad,
+        altura: record.altura,
+        peso_inicial: record.peso_inicial,
+        fecha_cosecha: record.fecha_cosecha,
+        procesos_count: 0 // Simplificado para migración inicial
+      }));
+      
+      setLotes(formattedLotes);
+      if (formattedLotes.length > 0 && !processData.lote) {
+        setProcessData(prev => ({ ...prev, lote: formattedLotes[0].id }));
       }
     } catch (error) {
-      console.error('Error fetching lotes:', error);
+      console.error("Error al cargar lotes:", error);
     } finally {
       setLoadingList(false);
     }
   };
 
-  // Cargar caficultores
   const fetchCaficultores = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/caficultores');
-      if (response.ok) {
-        const data = await response.json();
-        setCaficultores(data);
-        if (data.length > 0 && !formData.caficultor_id) {
-          setFormData(prev => ({ ...prev, caficultor_id: data[0].id }));
-        }
+      const records = await pb.collection('caficultores').getFullList({
+        sort: '-created',
+      });
+      setCaficultores(records);
+      if (records.length > 0 && !formData.caficultor) {
+        setFormData(prev => ({ ...prev, caficultor: records[0].id }));
       }
     } catch (error) {
-      console.error('Error fetching caficultores:', error);
-    }
-  };
-
-  const fetchLotesOnly = async () => {
-    try {
-      const response = await fetch('http://localhost:4000/api/lotes');
-      if (response.ok) {
-        const data = await response.json();
-        setLotes(data);
-        if (data.length > 0 && !processData.lote_id) {
-          setProcessData(prev => ({ ...prev, lote_id: data[0].id }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching lotes for processes:', error);
+      console.error("Error al cargar caficultores:", error);
     }
   };
 
   useEffect(() => {
     fetchCaficultores();
-    fetchLotesOnly();
-    if (tab === 'status') fetchLotes();
+    fetchLotes();
   }, [tab]);
 
   const handleChange = (e) => {
@@ -112,30 +114,18 @@ export default function Home() {
   // Enviar Lote
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.caficultor_id) {
+    if (!formData.caficultor) {
       setMessage({ type: 'error', text: 'Debes seleccionar un productor.' });
       return;
     }
     setLoading(true);
-    setMessage(null);
-
     try {
-      const response = await fetch('http://localhost:4000/api/lotes', {
-        withCredentials: true,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: '¡Lote registrado exitosamente!' });
-        setFormData({ ...formData, peso_inicial: '', altura: '' });
-        setTimeout(() => setTab('status'), 1500);
-      } else {
-        setMessage({ type: 'error', text: 'Error al registrar el lote.' });
-      }
+      await pb.collection('lotes').create(formData);
+      setMessage({ type: 'success', text: '¡Lote registrado exitosamente!' });
+      setFormData({ ...formData, peso_inicial: '', altura: '' });
+      setTimeout(() => setTab('status'), 1500);
     } catch (error) {
-      setMessage({ type: 'error', text: 'No se pudo conectar con el servidor.' });
+      setMessage({ type: 'error', text: 'Error al registrar el lote.' });
     } finally {
       setLoading(false);
     }
@@ -146,17 +136,11 @@ export default function Home() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:4000/api/caficultores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(provData),
-      });
-      if (response.ok) {
-        setMessage({ type: 'success', text: '¡Productor registrado exitosamente!' });
-        setProvData({ nombre: '', finca: '', region: '' });
-        fetchCaficultores();
-        setTimeout(() => setTab('register'), 1500);
-      }
+      await pb.collection('caficultores').create(provData);
+      setMessage({ type: 'success', text: '¡Productor registrado exitosamente!' });
+      setProvData({ nombre: '', finca: '', region: '' });
+      fetchCaficultores();
+      setTimeout(() => setTab('register'), 1500);
     } catch (error) {
       setMessage({ type: 'error', text: 'Error al registrar productor.' });
     } finally {
@@ -167,22 +151,16 @@ export default function Home() {
   // Enviar Proceso
   const handleProcessSubmit = async (e) => {
     e.preventDefault();
-    if (!processData.lote_id) {
+    if (!processData.lote) {
       setMessage({ type: 'error', text: 'Debes seleccionar un lote activo.' });
       return;
     }
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:4000/api/lotes/procesos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(processData),
-      });
-      if (response.ok) {
-        setMessage({ type: 'success', text: '¡Proceso registrado exitosamente!' });
-        setProcessData({ ...processData, temperatura_promedio: '', humedad_promedio: '', notas: '' });
-        setTimeout(() => setTab('status'), 1500);
-      }
+      await pb.collection('procesos').create(processData);
+      setMessage({ type: 'success', text: '¡Proceso registrado exitosamente!' });
+      setProcessData({ ...processData, temperatura: '', humedad: '', notas: '' });
+      setTimeout(() => setTab('status'), 1500);
     } catch (error) {
       setMessage({ type: 'error', text: 'Error al registrar proceso.' });
     } finally {
@@ -321,7 +299,7 @@ export default function Home() {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div className="form-group">
               <label>Seleccionar Productor</label>
-              <select name="caficultor_id" value={formData.caficultor_id} onChange={handleChange} required>
+              <select name="caficultor" value={formData.caficultor} onChange={handleChange} required>
                 <option value="">Seleccione un productor...</option>
                 {caficultores.map(c => (
                   <option key={c.id} value={c.id}>{c.nombre} - {c.finca}</option>
@@ -387,10 +365,10 @@ export default function Home() {
           <form onSubmit={handleProcessSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div className="form-group">
               <label>Seleccionar Lote Activo</label>
-              <select name="lote_id" value={processData.lote_id} onChange={handleProcessChange} required>
+              <select name="lote" value={processData.lote} onChange={handleProcessChange} required>
                 <option value="">Seleccione un lote...</option>
                 {lotes.map(l => (
-                  <option key={l.id} value={l.id}>Lote #{l.id.toString().padStart(3, '0')} - {l.variedad}</option>
+                  <option key={l.id} value={l.id}>Lote {l.numero} - {l.variedad}</option>
                 ))}
               </select>
             </div>
@@ -410,11 +388,11 @@ export default function Home() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <div className="form-group">
                 <label>Temperatura Promedio (°C)</label>
-                <input name="temperatura_promedio" type="number" step="0.1" value={processData.temperatura_promedio} onChange={handleProcessChange} placeholder="Ej: 24.5" />
+                <input name="temperatura" type="number" step="0.1" value={processData.temperatura} onChange={handleProcessChange} placeholder="Ej: 24.5" />
               </div>
               <div className="form-group">
                 <label>Humedad Promedio (%)</label>
-                <input name="humedad_promedio" type="number" step="0.1" value={processData.humedad_promedio} onChange={handleProcessChange} placeholder="Ej: 11.2" />
+                <input name="humedad" type="number" step="0.1" value={processData.humedad} onChange={handleProcessChange} placeholder="Ej: 11.2" />
               </div>
             </div>
             <div className="form-group">
@@ -547,7 +525,7 @@ export default function Home() {
                 <div key={lote.id} className="premium-card" style={{ margin: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                     <div>
-                      <h4 style={{ color: 'var(--accent)', textTransform: 'uppercase' }}>LOTE #{lote.id.toString().padStart(3, '0')}</h4>
+                      <h4 style={{ color: 'var(--accent)', textTransform: 'uppercase' }}>LOTE {lote.numero}</h4>
                       <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>Productor: {lote.caficultor_nombre} | {lote.finca}</p>
                       <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Variedad: {lote.variedad} | {lote.altura} msnm</p>
                     </div>
@@ -609,7 +587,7 @@ export default function Home() {
               <X size={24} />
             </button>
             <h3 style={{ marginBottom: '20px' }}>Pasaporte Digital QR</h3>
-            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '20px' }}>Lote #{qrLote.id.toString().padStart(3, '0')} - {qrLote.variedad}</p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '20px' }}>Lote {qrLote.numero} - {qrLote.variedad}</p>
             
             <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', display: 'inline-block', marginBottom: '20px' }}>
               <QRCodeCanvas 

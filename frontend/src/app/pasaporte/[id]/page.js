@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { MapPin, Calendar, Layers, Droplets, User, ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
 import html2canvas from 'html2canvas';
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://localhost:8090');
 
 export default function PasaporteDigital({ params }) {
   const [data, setData] = useState(null);
@@ -11,21 +14,44 @@ export default function PasaporteDigital({ params }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchLote = async () => {
+    const fetchLoteData = async () => {
       try {
-        const response = await fetch(`http://localhost:4000/api/lotes/${params.id}`);
-        if (!response.ok) {
-          throw new Error('Lote no encontrado');
-        }
-        const loteData = await response.json();
-        setData(loteData);
+        const record = await pb.collection('lotes').getOne(params.id, {
+          expand: 'caficultor',
+        });
+        
+        // Cargar procesos relacionados
+        const procesosRecords = await pb.collection('procesos').getFullList({
+          filter: `lote = "${params.id}"`,
+          sort: '-created',
+        });
+
+        const formattedData = {
+          id: record.id,
+          variedad: record.variedad,
+          altura: record.altura,
+          peso_inicial: record.peso_inicial,
+          fecha_cosecha: record.fecha_cosecha,
+          caficultor: record.expand?.caficultor || { nombre: 'Desconocido', finca: 'N/A', region: 'N/A' },
+          procesos: procesosRecords.map(p => ({
+            id: p.id,
+            tipo: p.tipo,
+            sub_tipo: p.sub_tipo,
+            temperatura_promedio: p.temperatura,
+            humedad_promedio: p.humedad,
+            notas: p.notas,
+            fecha: p.created
+          }))
+        };
+
+        setData(formattedData);
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchLote();
+    fetchLoteData();
   }, [params.id]);
 
   if (loading) {

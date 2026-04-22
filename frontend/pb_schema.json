@@ -1,0 +1,52 @@
+[
+  {
+    "name": "caficultores",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "nombre", "type": "text", "required": true },
+      { "name": "finca", "type": "text", "required": true },
+      { "name": "region", "type": "text", "required": true }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  },
+  {
+    "name": "lotes",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "caficultor", "type": "relation", "required": true, "options": { "collectionId": "caficultores", "maxSelect": 1, "cascadeDelete": true } },
+      { "name": "variedad", "type": "text", "required": true },
+      { "name": "altura", "type": "number", "required": true },
+      { "name": "peso_inicial", "type": "number", "required": true },
+      { "name": "fecha_cosecha", "type": "date", "required": true }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  },
+  {
+    "name": "procesos",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "name": "lote", "type": "relation", "required": true, "options": { "collectionId": "lotes", "maxSelect": 1, "cascadeDelete": true } },
+      { "name": "tipo", "type": "text", "required": true },
+      { "name": "sub_tipo", "type": "text", "required": true },
+      { "name": "temperatura", "type": "number" },
+      { "name": "humedad", "type": "number" },
+      { "name": "notas", "type": "text" }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  }
+]

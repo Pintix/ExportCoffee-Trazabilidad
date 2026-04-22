@@ -1,0 +1,22 @@
+name: exportcoffee_mobile
+description: App de Trazabilidad ExportCoffee.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pocketbase: ^0.16.0
+  lucide_icons: ^1.0.0
+  intl: ^0.18.1
+  url_launcher: ^6.1.11
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
