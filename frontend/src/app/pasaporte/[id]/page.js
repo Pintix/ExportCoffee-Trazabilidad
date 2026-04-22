@@ -20,6 +20,11 @@ export default function PasaporteDigital({ params }) {
           expand: 'caficultor',
         });
         
+        // Cargar todos los lotes para calcular el número secuencial
+        const allLotes = await pb.collection('lotes').getFullList({ sort: '-created' });
+        const loteIndex = allLotes.findIndex(l => l.id === params.id);
+        const numeroLote = loteIndex !== -1 ? allLotes.length - loteIndex : '?';
+        
         // Cargar procesos relacionados
         const procesosRecords = await pb.collection('procesos').getFullList({
           filter: `lote = "${params.id}"`,
@@ -28,6 +33,7 @@ export default function PasaporteDigital({ params }) {
 
         const formattedData = {
           id: record.id,
+          numero: numeroLote,
           variedad: record.variedad,
           altura: record.altura,
           peso_inicial: record.peso_inicial,
@@ -89,11 +95,11 @@ export default function PasaporteDigital({ params }) {
   // Mock inicial de procesos si la bd aún no tiene procesos detallados para el lote
   const displayProcesos = procesos && procesos.length > 0 ? procesos.map(p => ({
     tipo: p.tipo,
-    fecha: new Date(p.fecha_inicio || p.created_at).toLocaleDateString(),
+    fecha: new Date(p.fecha || p.created || Date.now()).toLocaleDateString(),
     desc: p.notas || `Subtipo: ${p.sub_tipo || 'N/A'}, Temp: ${p.temperatura_promedio || 'N/A'}, Hum: ${p.humedad_promedio || 'N/A'}`,
     icon: <Layers/>
   })) : [
-    { tipo: 'Cosecha', fecha: new Date(data.fecha_cosecha || data.created_at).toLocaleDateString(), desc: 'Registro inicial del lote y recolección de granos maduros.', icon: <Calendar/> }
+    { tipo: 'Cosecha', fecha: new Date(data.fecha_cosecha || Date.now()).toLocaleDateString(), desc: 'Registro inicial del lote y recolección de granos maduros.', icon: <Calendar/> }
   ];
 
   // Construir query de búsqueda para Google Maps
@@ -118,7 +124,7 @@ export default function PasaporteDigital({ params }) {
         {/* Hero Header */}
       <section className="premium-card" style={{ background: 'var(--primary)', color: '#fff', textAlign: 'center', marginBottom: '40px' }}>
         <h1 style={{ color: 'var(--secondary)', fontSize: '2.2rem', marginBottom: '10px' }}>Pasaporte Digital</h1>
-        <p style={{ opacity: 0.9, letterSpacing: '1px' }}>LOTE #{data.id.toString().padStart(3, '0')}</p>
+        <p style={{ opacity: 0.9, letterSpacing: '1px' }}>LOTE {data.numero}</p>
         <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'center', gap: '30px', fontSize: '0.9rem', flexWrap: 'wrap' }}>
           <div>
             <p style={{ color: 'var(--secondary)', fontWeight: 700, fontSize: '1.2rem' }}>{data.altura} msnm</p>

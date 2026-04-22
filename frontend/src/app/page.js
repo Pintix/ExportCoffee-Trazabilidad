@@ -51,23 +51,31 @@ export default function Home() {
   const fetchLotes = async () => {
     setLoadingList(true);
     try {
-      const records = await pb.collection('lotes').getFullList({
+      const lotesRecords = await pb.collection('lotes').getFullList({
         sort: '-created',
         expand: 'caficultor',
       });
+
+      // Obtener todos los procesos para contar cuántos tiene cada lote
+      const procesosRecords = await pb.collection('procesos').getFullList();
       
-      const formattedLotes = records.map((record, index) => ({
-        numero: records.length - index,
-        id: record.id,
-        caficultor_id: record.caficultor,
-        caficultor_nombre: record.expand?.caficultor?.nombre || 'Desconocido',
-        finca: record.expand?.caficultor?.finca || 'N/A',
-        variedad: record.variedad,
-        altura: record.altura,
-        peso_inicial: record.peso_inicial,
-        fecha_cosecha: record.fecha_cosecha,
-        procesos_count: 0 // Simplificado para migración inicial
-      }));
+      const formattedLotes = lotesRecords.map((record, index) => {
+        // Contar los procesos asociados a este lote
+        const count = procesosRecords.filter(p => p.lote === record.id).length;
+        
+        return {
+          numero: lotesRecords.length - index,
+          id: record.id,
+          caficultor_id: record.caficultor,
+          caficultor_nombre: record.expand?.caficultor?.nombre || 'Desconocido',
+          finca: record.expand?.caficultor?.finca || 'N/A',
+          variedad: record.variedad,
+          altura: record.altura,
+          peso_inicial: record.peso_inicial,
+          fecha_cosecha: record.fecha_cosecha,
+          procesos_count: count
+        };
+      });
       
       setLotes(formattedLotes);
       if (formattedLotes.length > 0 && !processData.lote) {
